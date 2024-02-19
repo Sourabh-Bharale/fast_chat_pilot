@@ -4,8 +4,11 @@ from fastapi import FastAPI , Query
 from langchain_community.vectorstores import Qdrant
 from langchain_openai import OpenAIEmbeddings
 from qdrant_client import QdrantClient
+from langchain_community.vectorstores import Qdrant
+from langchain_community.document_loaders import PyPDFLoader
 from dotenv import load_dotenv
-
+from langchain.text_splitter import CharacterTextSplitter
+from qdrant_client.models import VectorParams, Distance
 load_dotenv()
 app = FastAPI()
 
@@ -19,12 +22,34 @@ qdrant_client = QdrantClient(
 def read_root():
     return {"Hello": "World"}
 
+@app.get("/create_collection")
+def create_collection():
+    qdrant_client.recreate_collection(
+        collection_name="my_documents",
+        vectors_config=VectorParams(size=1536, distance=Distance.COSINE)
+    )
 
 # TODO: Add a file upload endpoint
-# @app.post("/upload")
-# def upload_file(url:str = Query(...)):
+@app.get("/upload")
+def upload_file(url:str = Query(...)):
+    pdf_loader = PyPDFLoader(url)
+    documents = pdf_loader.load()
 
+    text_splitter = CharacterTextSplitter(chunk_size=1000,chunk_overlap=200)
+    docs = text_splitter.split_documents(documents)
 
+    embeddings = OpenAIEmbeddings(openai_api_key=os.environ.get("OPENAI_API_KEY"))
+    
+    qdrant = Qdrant.from_documents(
+        docs,
+        embeddings,
+        url=os.environ.get("QDRANT_DB_URL"),
+        api_key=os.environ.get("QDRANT_API_KEY"),
+        prefer_grpc=True,
+        collection_name="my_documents"
+    )
+
+    return {"url": url, "documents": docs}
 
 @app.get("/query")
 def search_query(query:str = Query(...)):
