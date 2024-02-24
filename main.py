@@ -51,7 +51,7 @@ class UploadFile(BaseModel):
 @app.post("/upload")
 def upload_file(file: UploadFile):
     pdf_loader = PyPDFLoader(file.file_url)
-    print(file.file_url)
+    # print(file.file_url)
     documents = pdf_loader.load()
     text_splitter = CharacterTextSplitter(chunk_size=1000,chunk_overlap=200)
     docs = text_splitter.split_documents(documents)
@@ -68,6 +68,7 @@ def upload_file(file: UploadFile):
     )
 
     return {"message": "Document Upserted to VectorDB"}
+
 
 
 @app.get("/query")
